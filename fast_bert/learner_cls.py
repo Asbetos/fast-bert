@@ -451,7 +451,8 @@ class BertLearner(Learner):
                 )
             )
             self.logger.info("\n")
-
+                
+        tb_writer.export_scalars_to_json("./all_scalars.json")
         tb_writer.close()
         return global_step, tr_loss / global_step
 
