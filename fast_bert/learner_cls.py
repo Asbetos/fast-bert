@@ -210,16 +210,16 @@ class BertLearner(Learner):
 
         # Start Training
         print("***** Running training *****")
-        print("  Num examples = %d", len(train_dataloader.dataset))
-        print("  Num Epochs = %d", epochs)
+        print("  Num examples = ", len(train_dataloader.dataset))
+        print("  Num Epochs = ", epochs)
         print(
-            "  Total train batch size (w. parallel, distributed & accumulation) = %d",
+            "  Total train batch size (w. parallel, distributed & accumulation) = ",
             self.data.train_batch_size * self.grad_accumulation_steps,
         )
         print(
-            "  Gradient Accumulation steps = %d", self.grad_accumulation_steps
+            "  Gradient Accumulation steps = ", self.grad_accumulation_steps
         )
-        print("  Total optimization steps = %d", t_total)
+        print("  Total optimization steps = ", t_total)
 
         global_step = 0
         epoch_step = 0
@@ -307,8 +307,8 @@ class BertLearner(Learner):
     def validate(self):
         print("Running evaluation")
 
-        print("  Num examples = %d", len(self.data.val_dl.dataset))
-        print("  Batch size = %d", self.data.val_batch_size)
+        print("  Num examples = ", len(self.data.val_dl.dataset))
+        print("  Batch size = ", self.data.val_batch_size)
 
         all_logits = None
         all_labels = None
@@ -321,7 +321,7 @@ class BertLearner(Learner):
 
         validation_scores = {metric["name"]: 0.0 for metric in self.metrics}
 
-        for step, batch in enumerate(tqdm(self.data.val_dl),desc='eval_iter'):
+        for step, batch in enumerate(tqdm(self.data.val_dl,desc='eval_iter')):
             self.model.eval()
             batch = tuple(t.to(self.device) for t in batch)
 
