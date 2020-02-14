@@ -209,17 +209,17 @@ class BertLearner(Learner):
             self.model = torch.nn.DataParallel(self.model)
 
         # Start Training
-        self.logger.info("***** Running training *****")
-        self.logger.info("  Num examples = %d", len(train_dataloader.dataset))
-        self.logger.info("  Num Epochs = %d", epochs)
-        self.logger.info(
+        print("***** Running training *****")
+        print("  Num examples = %d", len(train_dataloader.dataset))
+        print("  Num Epochs = %d", epochs)
+        print(
             "  Total train batch size (w. parallel, distributed & accumulation) = %d",
             self.data.train_batch_size * self.grad_accumulation_steps,
         )
-        self.logger.info(
+        print(
             "  Gradient Accumulation steps = %d", self.grad_accumulation_steps
         )
-        self.logger.info("  Total optimization steps = %d", t_total)
+        print("  Total optimization steps = %d", t_total)
 
         global_step = 0
         epoch_step = 0
@@ -297,7 +297,7 @@ class BertLearner(Learner):
             # Log metrics
             print("lr after epoch {}: {}".format((epoch + 1), scheduler.get_lr()[0]))
             print("train_loss after epoch {}: {}".format((epoch + 1), epoch_loss / epoch_step))
-            # self.logger.info("\n")
+            # print("\n")
 
         tb_writer.export_scalars_to_json("./all_scalars.json")
         tb_writer.close()
