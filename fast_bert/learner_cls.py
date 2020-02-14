@@ -4,17 +4,12 @@ from .learner_util import Learner
 from torch import nn
 from typing import List
 
-from .modeling import (
-    BertForMultiLabelSequenceClassification,
-    XLNetForMultiLabelSequenceClassification,
-    RobertaForMultiLabelSequenceClassification,
-    DistilBertForMultiLabelSequenceClassification,
-    CamembertForMultiLabelSequenceClassification,
-    AlbertForMultiLabelSequenceClassification,
-)
+from .modeling import BertForMultiLabelSequenceClassification
+  
 
 from .bert_layers import BertLayerNorm
-from fastprogress.fastprogress import master_bar, progress_bar
+# from fastprogress.fastprogress import master_bar, progress_bar
+from tqdm import tqdm, trange
 import torch
 import pandas as pd
 import numpy as np
@@ -30,26 +25,7 @@ from transformers import (
     WEIGHTS_NAME,
     BertConfig,
     BertForSequenceClassification,
-    BertTokenizer,
-    XLMConfig,
-    XLMForSequenceClassification,
-    XLMTokenizer,
-    XLNetConfig,
-    XLNetForSequenceClassification,
-    XLNetTokenizer,
-    RobertaConfig,
-    RobertaForSequenceClassification,
-    RobertaTokenizer,
-    CamembertConfig,
-    CamembertForSequenceClassification,
-    CamembertTokenizer,
-    AlbertConfig,
-    AlbertForSequenceClassification,
-    AlbertTokenizer,
-    DistilBertConfig,
-    DistilBertForSequenceClassification,
-    DistilBertTokenizer,
-)
+    BertTokenizer)
 
 
 MODEL_CLASSES = {
@@ -57,49 +33,15 @@ MODEL_CLASSES = {
         BertConfig,
         (BertForSequenceClassification, BertForMultiLabelSequenceClassification),
         BertTokenizer,
-    ),
-    "xlnet": (
-        XLNetConfig,
-        (XLNetForSequenceClassification, XLNetForMultiLabelSequenceClassification),
-        XLNetTokenizer,
-    ),
-    "xlm": (
-        XLMConfig,
-        (XLMForSequenceClassification, XLMForSequenceClassification),
-        XLMTokenizer,
-    ),
-    "roberta": (
-        RobertaConfig,
-        (RobertaForSequenceClassification, RobertaForMultiLabelSequenceClassification),
-        RobertaTokenizer,
-    ),
-    "distilbert": (
-        DistilBertConfig,
-        (
-            DistilBertForSequenceClassification,
-            DistilBertForMultiLabelSequenceClassification,
-        ),
-        DistilBertTokenizer,
-    ),
-    "albert": (
-        AlbertConfig,
-        (AlbertForSequenceClassification, AlbertForMultiLabelSequenceClassification),
-        AlbertTokenizer,
-    ),
-    "camembert-base": (
-        CamembertConfig,
-        (
-            CamembertForSequenceClassification,
-            CamembertForMultiLabelSequenceClassification,
-        ),
-        CamembertTokenizer,
-    ),
+    )
 }
 
 
 try:
     from apex.normalization.fused_layer_norm import FusedLayerNorm
 except Exception:
+
+    print("Apex import failed...using regular implemetation")
     from .bert_layers import BertLayerNorm as FusedLayerNorm
 
 
@@ -113,13 +55,13 @@ class BertLearner(Learner):
         device,
         logger,
         finetuned_wgts_path=None,
-        multi_gpu=True,
+        multi_gpu=False,
         is_fp16=True,
         loss_scale=0,
         warmup_steps=0,
         fp16_opt_level="O1",
         grad_accumulation_steps=1,
-        multi_label=False,
+        multi_label=True,
         max_grad_norm=1.0,
         adam_epsilon=1e-8,
         logging_steps=100,
@@ -182,13 +124,13 @@ class BertLearner(Learner):
         metrics,
         device,
         logger,
-        multi_gpu=True,
+        multi_gpu=False,
         is_fp16=True,
         loss_scale=0,
         warmup_steps=0,
         fp16_opt_level="O1",
         grad_accumulation_steps=1,
-        multi_label=False,
+        multi_label=True,
         max_grad_norm=1.0,
         adam_epsilon=1e-8,
         logging_steps=100,
@@ -214,70 +156,6 @@ class BertLearner(Learner):
         # Classification specific attributes
         self.multi_label = multi_label
         self.metrics = metrics
-
-    # def freeze_to(self, n: int) -> None:
-    #     "Freeze layers up to layer group `n`."
-    #     for g in self.layer_groups[:n]:
-    #         for l in g:
-    #             if not isinstance(l, self.bn_types):
-    #                 requires_grad(l, False)
-    #     for g in self.layer_groups[n:]:
-    #         requires_grad(g, True)
-    #     self.optimizer = None
-
-    # def freeze_module(self, module):
-    #     for param in module.parameters():
-    #         param.requires_grad = False
-
-    # def unfreeze_module(self, module):
-    #     for param in module.parameters():
-    #         param.requires_grad = True
-
-    # def freeze(self) -> None:
-    #     "Freeze up to last layer group."
-    #     assert len(self.layer_groups) > 1
-    #     self.freeze_to(-1)
-    #     self.optimizer = None
-
-    # def unfreeze(self):
-    #     "Unfreeze entire model."
-    #     self.freeze_to(0)
-    #     self.optimizer = None
-
-    # def bert_clas_split(self) -> List[nn.Module]:
-    #     "Split the BERT `model` in groups for differential learning rates."
-    #     if self.model.module:
-    #         model = self.model.module
-    #     else:
-    #         model = self.model
-
-    #     bert = model.bert
-
-    #     embedder = bert.embeddings
-    #     pooler = bert.pooler
-
-    #     encoder = bert.encoder
-
-    #     classifier = [model.dropout, model.classifier]
-
-    #     n = len(encoder.layer) // 3
-
-    #     groups = [
-    #         [embedder],
-    #         list(encoder.layer[:n]),
-    #         list(encoder.layer[n : 2 * n]),
-    #         list(encoder.layer[2 * n :]),
-    #         [pooler],
-    #         classifier,
-    #     ]
-    #     return groups
-
-    # def split(self, split_on: SplitFuncOrIdxList) -> None:
-    #     "Split the model at `split_on`."
-    #     if isinstance(split_on, Callable):
-    #         split_on = split_on()
-    #     self.layer_groups = split_model(self.model, split_on)
-    #     return self
 
     ### Train the model ###
     def fit(
@@ -347,12 +225,12 @@ class BertLearner(Learner):
         epoch_step = 0
         tr_loss, logging_loss, epoch_loss = 0.0, 0.0, 0.0
         self.model.zero_grad()
-        pbar = master_bar(range(epochs))
+        # pbar = master_bar(range(epochs))
 
-        for epoch in pbar:
+        for epoch in trange(epochs,desc='epoch'):
             epoch_step = 0
             epoch_loss = 0.0
-            for step, batch in enumerate(progress_bar(train_dataloader, parent=pbar)):
+            for step, batch in enumerate(tqdm(train_dataloader, desc='iter')):
                 self.model.train()
                 batch = tuple(t.to(self.device) for t in batch)
                 inputs = {
@@ -361,18 +239,14 @@ class BertLearner(Learner):
                     "labels": batch[3],
                 }
 
-                if self.model_type in ["bert", "xlnet"]:
-                    inputs["token_type_ids"] = batch[2]
+                # if self.model_type in ["bert", "xlnet"]:
+                inputs["token_type_ids"] = batch[2]
 
                 outputs = self.model(**inputs)
-                loss = outputs[
-                    0
-                ]  # model outputs are always tuple in pytorch-transformers (see doc)
+                loss = outputs[0]  # model outputs are always tuple in pytorch-transformers (see doc)
 
                 if self.n_gpu > 1:
-                    loss = (
-                        loss.mean()
-                    )  # mean() to average on multi-gpu parallel training
+                    loss = (loss.mean())  # mean() to average on multi-gpu parallel training
                 if self.grad_accumulation_steps > 1:
                     loss = loss / self.grad_accumulation_steps
 
@@ -403,33 +277,14 @@ class BertLearner(Learner):
                             # evaluate model
                             results = self.validate()
                             for key, value in results.items():
-                                tb_writer.add_scalar(
-                                    "eval_{}".format(key), value, global_step
-                                )
-                                self.logger.info(
-                                    "eval_{} after step {}: {}: ".format(
-                                        key, global_step, value
-                                    )
-                                )
+                                tb_writer.add_scalar("eval_{}".format(key), value, global_step)
+                                print("eval_{} after step {}: {}: ".format(key, global_step, value))
 
                         # Log metrics
-                        self.logger.info(
-                            "lr after step {}: {}".format(
-                                global_step, scheduler.get_lr()[0]
-                            )
-                        )
-                        self.logger.info(
-                            "train_loss after step {}: {}".format(
-                                global_step,
-                                (tr_loss - logging_loss) / self.logging_steps,
-                            )
-                        )
+                        print("lr after step {}: {}".format(global_step, scheduler.get_lr()[0]))
+                        print("train_loss after step {}: {}".format(global_step,(tr_loss - logging_loss) / self.logging_steps,))
                         tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
-                        tb_writer.add_scalar(
-                            "loss",
-                            (tr_loss - logging_loss) / self.logging_steps,
-                            global_step,
-                        )
+                        tb_writer.add_scalar("loss",(tr_loss - logging_loss) / self.logging_steps,global_step)
 
                         logging_loss = tr_loss
 
@@ -437,31 +292,23 @@ class BertLearner(Learner):
             if validate:
                 results = self.validate()
                 for key, value in results.items():
-                    self.logger.info(
-                        "eval_{} after epoch {}: {}: ".format(key, (epoch + 1), value)
-                    )
+                    print("eval_{} after epoch {}: {}: ".format(key, (epoch + 1), value))
 
             # Log metrics
-            self.logger.info(
-                "lr after epoch {}: {}".format((epoch + 1), scheduler.get_lr()[0])
-            )
-            self.logger.info(
-                "train_loss after epoch {}: {}".format(
-                    (epoch + 1), epoch_loss / epoch_step
-                )
-            )
-            self.logger.info("\n")
-                
+            print("lr after epoch {}: {}".format((epoch + 1), scheduler.get_lr()[0]))
+            print("train_loss after epoch {}: {}".format((epoch + 1), epoch_loss / epoch_step))
+            # self.logger.info("\n")
+
         tb_writer.export_scalars_to_json("./all_scalars.json")
         tb_writer.close()
         return global_step, tr_loss / global_step
 
     ### Evaluate the model
     def validate(self):
-        self.logger.info("Running evaluation")
+        print("Running evaluation")
 
-        self.logger.info("  Num examples = %d", len(self.data.val_dl.dataset))
-        self.logger.info("  Batch size = %d", self.data.val_batch_size)
+        print("  Num examples = %d", len(self.data.val_dl.dataset))
+        print("  Batch size = %d", self.data.val_batch_size)
 
         all_logits = None
         all_labels = None
@@ -474,7 +321,7 @@ class BertLearner(Learner):
 
         validation_scores = {metric["name"]: 0.0 for metric in self.metrics}
 
-        for step, batch in enumerate(progress_bar(self.data.val_dl)):
+        for step, batch in enumerate(tqdm(self.data.val_dl),desc='eval_iter'):
             self.model.eval()
             batch = tuple(t.to(self.device) for t in batch)
 
@@ -485,8 +332,7 @@ class BertLearner(Learner):
                     "labels": batch[3],
                 }
 
-                if self.model_type in ["bert", "xlnet"]:
-                    inputs["token_type_ids"] = batch[2]
+                inputs["token_type_ids"] = batch[2]
 
                 outputs = self.model(**inputs)
                 tmp_eval_loss, logits = outputs[:2]
@@ -511,17 +357,13 @@ class BertLearner(Learner):
                 out_label_ids = inputs["labels"].detach().cpu().numpy()
             else:
                 preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
-                out_label_ids = np.append(
-                    out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0
-                )
+                out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
 
         eval_loss = eval_loss / nb_eval_steps
 
         # Evaluation metrics
         for metric in self.metrics:
-            validation_scores[metric["name"]] = metric["function"](
-                all_logits, all_labels
-            )
+            validation_scores[metric["name"]] = metric["function"](all_logits, all_labels)
 
         results = {"loss": eval_loss}
         results.update(validation_scores)
@@ -546,25 +388,20 @@ class BertLearner(Learner):
 
             inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": None}
 
-            if self.model_type in ["bert", "xlnet"]:
-                inputs["token_type_ids"] = batch[2]
+            inputs["token_type_ids"] = batch[2]
 
             with torch.no_grad():
                 outputs = self.model(**inputs)
                 logits = outputs[0]
                 if self.multi_label:
                     logits = logits.sigmoid()
-                # elif len(self.data.labels) == 2:
-                #     logits = logits.sigmoid()
                 else:
                     logits = logits.softmax(dim=1)
 
             if all_logits is None:
                 all_logits = logits.detach().cpu().numpy()
             else:
-                all_logits = np.concatenate(
-                    (all_logits, logits.detach().cpu().numpy()), axis=0
-                )
+                all_logits = np.concatenate((all_logits, logits.detach().cpu().numpy()), axis=0)
 
         result_df = pd.DataFrame(all_logits, columns=self.data.labels)
         results = result_df.to_dict("record")

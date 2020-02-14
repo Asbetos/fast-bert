@@ -15,34 +15,10 @@ from transformers import (
     BertConfig,
     BertForSequenceClassification,
     BertTokenizer,
-    XLMConfig,
-    XLMForSequenceClassification,
-    XLMTokenizer,
-    XLNetConfig,
-    XLNetForSequenceClassification,
-    XLNetTokenizer,
-    RobertaConfig,
-    RobertaForSequenceClassification,
-    RobertaTokenizer,
-    CamembertConfig,
-    CamembertForSequenceClassification,
-    CamembertTokenizer,
-    AlbertConfig,
-    AlbertForSequenceClassification,
-    AlbertTokenizer,
-    DistilBertConfig,
-    DistilBertForSequenceClassification,
-    DistilBertTokenizer,
 )
 
 MODEL_CLASSES = {
     "bert": (BertConfig, BertForSequenceClassification, BertTokenizer),
-    "xlnet": (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
-    "xlm": (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
-    "roberta": (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
-    "albert": (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer),
-    "distilbert": (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
-    "camembert-base": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer)
 }
 
 
@@ -251,80 +227,52 @@ class TextProcessor(DataProcessor):
         self.labels = None
 
     def get_train_examples(
-        self, filename="train.csv", text_col="text", label_col="label", size=-1
+        self, filename, text_col, label_col, size=-1
     ):
 
         if size == -1:
             data_df = pd.read_csv(os.path.join(self.data_dir, filename))
 
-            return self._create_examples(
-                data_df, "train", text_col=text_col, label_col=label_col
-            )
+            return self._create_examples(data_df, "train", text_col=text_col, label_col=label_col)
         else:
             data_df = pd.read_csv(os.path.join(self.data_dir, filename))
-            #             data_df['comment_text'] = data_df['comment_text'].apply(cleanHtml)
-            return self._create_examples(
-                data_df.sample(size), "train", text_col=text_col, label_col=label_col
-            )
+            return self._create_examples(data_df.sample(size), "train", text_col=text_col, label_col=label_col)
 
     def get_dev_examples(
-        self, filename="val.csv", text_col="text", label_col="label", size=-1
+        self, filename, text_col, label_col, size=-1
     ):
 
         if size == -1:
             data_df = pd.read_csv(os.path.join(self.data_dir, filename))
-            return self._create_examples(
-                data_df, "dev", text_col=text_col, label_col=label_col
-            )
+            return self._create_examples(data_df, "dev", text_col=text_col, label_col=label_col)
         else:
             data_df = pd.read_csv(os.path.join(self.data_dir, filename))
-            return self._create_examples(
-                data_df.sample(size), "dev", text_col=text_col, label_col=label_col
-            )
+            return self._create_examples(data_df.sample(size), "dev", text_col=text_col, label_col=label_col)
 
     def get_test_examples(
-        self, filename="val.csv", text_col="text", label_col="label", size=-1
+        self, filename, text_col, label_col, size=-1
     ):
         data_df = pd.read_csv(os.path.join(self.data_dir, filename))
-        #         data_df['comment_text'] = data_df['comment_text'].apply(cleanHtml)
         if size == -1:
-            return self._create_examples(
-                data_df, "test", text_col=text_col, label_col=None
-            )
+            return self._create_examples(data_df, "test", text_col=text_col, label_col=None)
         else:
-            return self._create_examples(
-                data_df.sample(size), "test", text_col=text_col, label_col=None
-            )
+            return self._create_examples(data_df.sample(size), "test", text_col=text_col, label_col=None)
 
-    def get_labels(self, filename="labels.csv"):
+    def get_labels(self, filename):
         """See base class."""
         if self.labels is None:
-            self.labels = list(
-                pd.read_csv(os.path.join(self.label_dir, filename), header=None)[0]
-                .astype("str")
-                .values
-            )
+            self.labels = list(pd.read_csv(os.path.join(self.label_dir, filename), header=None)[0].astype("str").values)
         return self.labels
 
     def _create_examples(self, df, set_type, text_col, label_col):
         """Creates examples for the training and dev sets."""
         if label_col is None:
             return list(
-                df.apply(
-                    lambda row: InputExample(
-                        guid=row.index, text_a=str(row[text_col]), label=None
-                    ),
-                    axis=1,
-                )
+                df.apply(lambda row: InputExample(guid=row.index, text_a=str(row[text_col]), label=None),axis=1)
             )
         else:
             return list(
-                df.apply(
-                    lambda row: InputExample(
-                        guid=row.index, text_a=str(row[text_col]), label=str(row[label_col])
-                    ),
-                    axis=1,
-                )
+                df.apply(lambda row: InputExample(guid=row.index, text_a=str(row[text_col]), label=str(row[label_col])),axis=1)
             )
 
 
@@ -333,33 +281,21 @@ class MultiLabelTextProcessor(TextProcessor):
         def _get_labels(row, label_col):
             if isinstance(label_col, list):
                 return list(row[label_col])
-            else:
-                # create one hot vector of labels
-                label_list = self.get_labels()
-                labels = [0] * len(label_list)
-                labels[label_list.index(row[label_col])] = 1
-                return labels
+            # else:
+            #     # create one hot vector of labels
+            #     label_list = self.get_labels()
+            #     labels = [0] * len(label_list)
+            #     labels[label_list.index(row[label_col])] = 1
+            #     return labels
 
         """Creates examples for the training and dev sets."""
         if label_col is None:
             return list(
-                df.apply(
-                    lambda row: InputExample(
-                        guid=row.index, text_a=row[text_col], label=[]
-                    ),
-                    axis=1,
-                )
+                df.apply(lambda row: InputExample(guid=row.index, text_a=row[text_col], label=[]),axis=1)
             )
         else:
             return list(
-                df.apply(
-                    lambda row: InputExample(
-                        guid=row.index,
-                        text_a=row[text_col],
-                        label=_get_labels(row, label_col),
-                    ),
-                    axis=1,
-                )
+                df.apply(lambda row: InputExample(guid=row.index,text_a=row[text_col],label=_get_labels(row, label_col)),axis=1)
             )
 
 
@@ -369,15 +305,15 @@ class BertDataBunch(object):
         data_dir,
         label_dir,
         tokenizer,
-        train_file="train.csv",
-        val_file="val.csv",
+        train_file,
+        val_file,
         test_data=None,
         label_file="labels.csv",
         text_col="text",
         label_col="label",
         batch_size_per_gpu=16,
         max_seq_length=512,
-        multi_gpu=True,
+        multi_gpu=False,
         multi_label=False,
         backend="nccl",
         model_type="bert",
@@ -397,7 +333,7 @@ class BertDataBunch(object):
             _, _, tokenizer_class = MODEL_CLASSES[model_type]
             # instantiate the new tokeniser object using the tokeniser name
             tokenizer = tokenizer_class.from_pretrained(
-                tokenizer, do_lower_case=("uncased" in tokenizer)
+                tokenizer, do_lower_case=True
             )
 
         self.tokenizer = tokenizer
@@ -485,7 +421,7 @@ class BertDataBunch(object):
             )
 
             # no grads necessary, hence double val batch size
-            self.val_batch_size = self.batch_size_per_gpu * 2 * max(1, self.n_gpu)
+            self.val_batch_size = self.batch_size_per_gpu * max(1, self.n_gpu)
             val_sampler = SequentialSampler(val_dataset)
             self.val_dl = DataLoader(
                 val_dataset, sampler=val_sampler, batch_size=self.val_batch_size
