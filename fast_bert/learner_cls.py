@@ -235,7 +235,7 @@ class BertLearner(Learner):
 
         # Train the model
 
-        tb_writer = open(os.path.join(tensorboard_dir,str(self.model_type)+"result.txt"),"w+")
+        tb_writer = open(os.path.join(tensorboard_dir,str(self.model_type)+"result.txt"),"a")
 
         train_dataloader = self.data.train_dl
         if self.max_steps > 0:
@@ -340,15 +340,16 @@ class BertLearner(Learner):
                         if validate:
                             # evaluate model
                             results = self.validate()
+                            tb_writer.write('\n'+str(global_step))
                             for key, value in results.items():
-                                tb_writer.write("eval_"+ str(key) +'\t'+ str(value) +'\t' + str(global_step) +'\n')
+                                tb_writer.write('\t'+"eval_"+ str(key) +'\t'+ str(value) +'\n')
                                 print("eval_{} after step {}: {}: ".format(key, global_step, value))
 
                         # Log metrics
                         print("lr after step {}: {}".format(global_step, scheduler.get_lr()[0]))
                         print("train_loss after step {}: {}".format(global_step,(tr_loss - logging_loss) / self.logging_steps,))
-                        tb_writer.write("lr = " + str(scheduler.get_lr()[0]) +'\t' + str(global_step) +'\n')
-                        tb_writer.write("loss = " +str((tr_loss - logging_loss) / self.logging_steps) +'\t'+str(global_step)+'\n')
+                        tb_writer.write('\t' + "lr = " + str(scheduler.get_lr()[0]) +'\n')
+                        tb_writer.write('\t' + "loss = " +str((tr_loss - logging_loss) / self.logging_steps) +'\t'+'\n')
 
                         logging_loss = tr_loss
 
