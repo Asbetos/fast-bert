@@ -4,7 +4,14 @@ from .learner_util import Learner
 from torch import nn
 from typing import List
 
-from .modeling import BertForMultiLabelSequenceClassification
+from .modeling import (
+    BertForMultiLabelSequenceClassification,
+    XLNetForMultiLabelSequenceClassification,
+    RobertaForMultiLabelSequenceClassification,
+    DistilBertForMultiLabelSequenceClassification,
+    CamembertForMultiLabelSequenceClassification,
+    AlbertForMultiLabelSequenceClassification,
+)
   
 
 from .bert_layers import BertLayerNorm
@@ -25,7 +32,26 @@ from transformers import (
     WEIGHTS_NAME,
     BertConfig,
     BertForSequenceClassification,
-    BertTokenizer)
+    BertTokenizer,
+    XLMConfig,
+    XLMForSequenceClassification,
+    XLMTokenizer,
+    XLNetConfig,
+    XLNetForSequenceClassification,
+    XLNetTokenizer,
+    RobertaConfig,
+    RobertaForSequenceClassification,
+    RobertaTokenizer,
+    CamembertConfig,
+    CamembertForSequenceClassification,
+    CamembertTokenizer,
+    AlbertConfig,
+    AlbertForSequenceClassification,
+    AlbertTokenizer,
+    DistilBertConfig,
+    DistilBertForSequenceClassification,
+    DistilBertTokenizer,
+)
 
 
 MODEL_CLASSES = {
@@ -33,8 +59,45 @@ MODEL_CLASSES = {
         BertConfig,
         (BertForSequenceClassification, BertForMultiLabelSequenceClassification),
         BertTokenizer,
-    )
+    ),
+    "xlnet": (
+        XLNetConfig,
+        (XLNetForSequenceClassification, XLNetForMultiLabelSequenceClassification),
+        XLNetTokenizer,
+    ),
+    "xlm": (
+        XLMConfig,
+        (XLMForSequenceClassification, XLMForSequenceClassification),
+        XLMTokenizer,
+    ),
+    "roberta": (
+        RobertaConfig,
+        (RobertaForSequenceClassification, RobertaForMultiLabelSequenceClassification),
+        RobertaTokenizer,
+    ),
+    "distilbert": (
+        DistilBertConfig,
+        (
+            DistilBertForSequenceClassification,
+            DistilBertForMultiLabelSequenceClassification,
+        ),
+        DistilBertTokenizer,
+    ),
+    "albert": (
+        AlbertConfig,
+        (AlbertForSequenceClassification, AlbertForMultiLabelSequenceClassification),
+        AlbertTokenizer,
+    ),
+    "camembert-base": (
+        CamembertConfig,
+        (
+            CamembertForSequenceClassification,
+            CamembertForMultiLabelSequenceClassification,
+        ),
+        CamembertTokenizer,
+    ),
 }
+
 
 
 try:
@@ -167,11 +230,12 @@ class BertLearner(Learner):
         optimizer_type="lamb",
     ):
 
-        tensorboard_dir = self.output_dir / "tensorboard"
+        tensorboard_dir = self.output_dir / "results"
         tensorboard_dir.mkdir(exist_ok=True)
 
         # Train the model
-        tb_writer = SummaryWriter(tensorboard_dir)
+
+        tb_writer = open(os.path.join(tensorboard_dir,str(self.model_type)+"result.txt"),"w+")
 
         train_dataloader = self.data.train_dl
         if self.max_steps > 0:
@@ -239,8 +303,8 @@ class BertLearner(Learner):
                     "labels": batch[3],
                 }
 
-                # if self.model_type in ["bert", "xlnet"]:
-                inputs["token_type_ids"] = batch[2]
+                if self.model_type in ["bert", "xlnet"]:
+                    inputs["token_type_ids"] = batch[2]
 
                 outputs = self.model(**inputs)
                 loss = outputs[0]  # model outputs are always tuple in pytorch-transformers (see doc)
@@ -277,14 +341,14 @@ class BertLearner(Learner):
                             # evaluate model
                             results = self.validate()
                             for key, value in results.items():
-                                tb_writer.add_scalar("eval_{}".format(key), value, global_step)
+                                tb_writer.write("eval_",key, value, global_step,'\n')
                                 print("eval_{} after step {}: {}: ".format(key, global_step, value))
 
                         # Log metrics
                         print("lr after step {}: {}".format(global_step, scheduler.get_lr()[0]))
                         print("train_loss after step {}: {}".format(global_step,(tr_loss - logging_loss) / self.logging_steps,))
-                        tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
-                        tb_writer.add_scalar("loss",(tr_loss - logging_loss) / self.logging_steps,global_step)
+                        tb_writer.write("lr", scheduler.get_lr()[0], global_step,'\n')
+                        tb_writer.write("loss",(tr_loss - logging_loss) / self.logging_steps,global_step,'\n')
 
                         logging_loss = tr_loss
 
@@ -299,7 +363,7 @@ class BertLearner(Learner):
             print("train_loss after epoch {}: {}".format((epoch + 1), epoch_loss / epoch_step))
             # print("\n")
 
-        tb_writer.export_scalars_to_json("./all_scalars.json")
+        # tb_writer.export_scalars_to_json("./all_scalars.json")
         tb_writer.close()
         return global_step, tr_loss / global_step
 
@@ -332,7 +396,8 @@ class BertLearner(Learner):
                     "labels": batch[3],
                 }
 
-                inputs["token_type_ids"] = batch[2]
+                if self.model_type in ["bert", "xlnet"]:
+                    inputs["token_type_ids"] = batch[2]
 
                 outputs = self.model(**inputs)
                 tmp_eval_loss, logits = outputs[:2]
