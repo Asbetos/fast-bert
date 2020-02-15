@@ -341,14 +341,14 @@ class BertLearner(Learner):
                             # evaluate model
                             results = self.validate()
                             for key, value in results.items():
-                                tb_writer.write("eval_",key, value, global_step,'\n')
+                                tb_writer.write("eval_"+ key +'\t'+ value +'\t' + global_step +'\n')
                                 print("eval_{} after step {}: {}: ".format(key, global_step, value))
 
                         # Log metrics
                         print("lr after step {}: {}".format(global_step, scheduler.get_lr()[0]))
                         print("train_loss after step {}: {}".format(global_step,(tr_loss - logging_loss) / self.logging_steps,))
-                        tb_writer.write("lr", scheduler.get_lr()[0], global_step,'\n')
-                        tb_writer.write("loss",(tr_loss - logging_loss) / self.logging_steps,global_step,'\n')
+                        tb_writer.write("lr = " + scheduler.get_lr()[0] +'\t' + global_step +'\n')
+                        tb_writer.write("loss = " +(tr_loss - logging_loss) / self.logging_steps +'\t'+global_step+'\n')
 
                         logging_loss = tr_loss
 
