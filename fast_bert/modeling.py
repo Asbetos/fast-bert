@@ -327,7 +327,7 @@ class CamembertForMultiLabelSequenceClassification(CamembertForSequenceClassific
         position_ids=None,
         head_mask=None,
     ):
-        outputs = self.camembert(
+        outputs = self.roberta(
             input_ids,
             position_ids=position_ids,
             token_type_ids=token_type_ids,
